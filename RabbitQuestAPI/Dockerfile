@@ -26,8 +26,8 @@ WORKDIR /app
 
 # Create non-root user
 ENV APP_UID=1654
-RUN groupadd --gid=$APP_UID app 2>/dev/null  true && \
-    useradd -l --uid=$APP_UID --gid=$APP_UID --create-home app 2>/dev/null  true
+RUN groupadd --gid=$APP_UID app 2>/dev/null || true && \
+    useradd -l --uid=$APP_UID --gid=$APP_UID --create-home app 2>/dev/null || true
 
 # Set up directories with correct permissions
 RUN mkdir -p /app/data/uploads/avatars \
