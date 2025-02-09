@@ -37,6 +37,7 @@ jobs:
     - name: Azure Login
       uses: azure/login@v2
       with:
+        auth-type: 'service-principal'
         creds: ${{ secrets.AZURE_SP_CREDS }}
     - name: Deploy to containerapp
       uses: azure/CLI@v2
