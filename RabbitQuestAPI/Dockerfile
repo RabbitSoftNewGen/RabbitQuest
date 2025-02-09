@@ -7,6 +7,8 @@ WORKDIR /app
 EXPOSE 8080
 EXPOSE 8081
 
+# Create the data directory (important!)
+RUN mkdir -p /app/data/uploads/avatars
 
 # This stage is used to build the service project
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
@@ -27,4 +29,9 @@ RUN dotnet publish "./RabbitQuestAPI.csproj" -c $BUILD_CONFIGURATION -o /app/pub
 FROM base AS final
 WORKDIR /app
 COPY --from=publish /app/publish .
+
+# Make sure the data directory has the correct permissions
+RUN chown -R $APP_UID:$APP_GID /app/data
+
+# Entrypoint (unchanged)
 ENTRYPOINT ["dotnet", "RabbitQuestAPI.dll"]

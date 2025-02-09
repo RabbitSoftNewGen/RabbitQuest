@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.FileProviders;
 using Microsoft.IdentityModel.Tokens;
 using RabbitQuestAPI.Application.Services;
 using RabbitQuestAPI.Domain.Entities;
@@ -13,7 +14,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 
 
-builder.WebHost.UseUrls("http://+:8080", "https://+:8081");
+builder.WebHost.UseUrls("http://+:8080");
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
@@ -47,9 +48,9 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
         {
             sqlOptions.MigrationsAssembly("RabbitQuestAPI");
             sqlOptions.EnableRetryOnFailure(
-                maxRetryCount: 5, // Максимальна кількість спроб
-                maxRetryDelay: TimeSpan.FromSeconds(30), // Максимальна затримка між спробами
-                errorNumbersToAdd: null // Додаткові коди помилок для повторних спроб
+                maxRetryCount: 5, 
+                maxRetryDelay: TimeSpan.FromSeconds(30), 
+                errorNumbersToAdd: null 
             );
         }
     ));
@@ -59,19 +60,22 @@ builder.Services.AddIdentity<User, IdentityRole<int>>()
     .AddEntityFrameworkStores<ApplicationDbContext>()
     .AddDefaultTokenProviders();
 
+builder.Services.AddScoped<IUserService, UserService>();
 
 
-builder.Services.AddCors(options => {
-    options.AddPolicy("AllowAll",
-        builder =>
+
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowSpecificOrigins",
+        policy =>
         {
-            builder
-                .SetIsOriginAllowed(_ => true) // Дозволяє всі origin
-                .AllowAnyMethod()
-                .AllowAnyHeader()
-                .AllowCredentials(); // Додаємо це, якщо використовуєте cookies/auth
+            policy.WithOrigins("http://localhost:8080")  
+                  .AllowAnyMethod()
+                  .AllowAnyHeader()
+                  .AllowCredentials();
         });
 });
+
 
 var app = builder.Build();
 
@@ -81,11 +85,11 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
+app.UseCors("AllowSpecificOrigins");
+
+//app.UseHttpsRedirection();
 
 
-app.UseHttpsRedirection();
-
-app.UseCors("AllowAll");
 
 using (var scope = app.Services.CreateScope())
 {
