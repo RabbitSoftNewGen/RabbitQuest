@@ -8,7 +8,7 @@ env:
   CONTAINER_APP_NAME: rabbitquestapi-app-2025020916355
   CONTAINER_APP_RESOURCE_GROUP_NAME: rabbitquest
   CONTAINER_REGISTRY_LOGIN_SERVER: rabbitquestapi20250209164210.azurecr.io
-  DOCKER_FILE_PATH: ./Dockerfile
+  DOCKER_FILE_PATH: ./RebbitQuestAPI/Dockerfile 
   PROJECT_NAME_FOR_DOCKER: rabbitquestapi
 jobs:
   build:
