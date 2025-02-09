@@ -86,7 +86,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseCors("AllowSpecificOrigins");
-
+//hehe
 //app.UseHttpsRedirection();
 
 
