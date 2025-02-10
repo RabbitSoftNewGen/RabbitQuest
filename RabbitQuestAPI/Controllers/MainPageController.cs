@@ -52,23 +52,23 @@ namespace RabbitQuestAPI.Controllers
         public async Task<ActionResult<IEnumerable<QuizDto>>> GetAllUsers(string? searchTerm = null)
         {
             var query = _context.Users
-                .AsQueryable();
+         .AsQueryable();
 
             if (!string.IsNullOrEmpty(searchTerm))
             {
-                query = query.Where(q => EF.Functions.FreeText(q.UserName, searchTerm));
-
+  
+                query = query.Where(q => EF.Functions.Like(q.UserName, $"%{searchTerm}%"));
             }
 
-            var quizzes = await query
+            var users = await query
                 .Select(q => new UserDto
                 {
-                   Username = q.UserName,
+                    Username = q.UserName,
                     AvatarURL = q.AvatarURL
                 })
                 .ToListAsync();
 
-            return Ok(quizzes);
+            return Ok(users);
         }
 
 

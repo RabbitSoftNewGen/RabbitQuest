@@ -1,16 +1,16 @@
 ﻿using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
-using RabbitQuestAPI.Application.DTO;
-using RabbitQuestAPI.Application.Interfaces;
-using RabbitQuestAPI.Application.Services;
-using RabbitQuestAPI.Domain.Entities;
 using System;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
+using System.Linq;
+using RabbitQuestAPI.Application.DTO;
+using RabbitQuestAPI.Application.Services;
+using RabbitQuestAPI.Domain.Entities;
 
 namespace RabbitQuestAPI.Infrastructure.Services
 {
@@ -18,38 +18,38 @@ namespace RabbitQuestAPI.Infrastructure.Services
     {
         private readonly IUserService _userService;
         private readonly IConfiguration _configuration;
-        private readonly IPasswordHasher<User> _passwordHasher;
         private readonly UserManager<User> _userManager;
 
         public AuthService(
             IUserService userService,
             IConfiguration configuration,
-            IPasswordHasher<User> passwordHasher,
             UserManager<User> userManager)
         {
             _userService = userService;
             _configuration = configuration;
-            _passwordHasher = passwordHasher;
             _userManager = userManager;
         }
 
         public async Task<LoginResponseDto> LoginAsync(LoginDto loginDto)
         {
             var user = await _userService.GetByEmailAsync(loginDto.Email);
-
-            if (user == null || _passwordHasher.VerifyHashedPassword(user, user.PasswordHash, loginDto.Password) != PasswordVerificationResult.Success)
+            if (user == null)
             {
                 throw new Exception("Invalid credentials");
             }
 
-            var accessToken = GenerateJwtToken(user);
+            var isPasswordValid = await _userManager.CheckPasswordAsync(user, loginDto.Password);
+            if (!isPasswordValid)
+            {
+                throw new Exception("Invalid credentials");
+            }
+
+            var accessToken = await GenerateJwtTokenAsync(user);
             var refreshToken = GenerateRefreshToken();
 
             user.RefreshToken = refreshToken;
             user.RefreshTokenExpiryTime = DateTime.UtcNow.AddDays(7);
             await _userService.UpdateUserTokensAsync(user, refreshToken, user.RefreshTokenExpiryTime.GetValueOrDefault());
-
-
 
             var roles = await _userManager.GetRolesAsync(user);
             bool isAdmin = roles.Contains("Admin");
@@ -73,12 +73,18 @@ namespace RabbitQuestAPI.Infrastructure.Services
             var user = new User
             {
                 Email = registerDto.Email,
-                UserName = registerDto.Username
+                UserName = registerDto.Username,
+               
             };
 
-            user.PasswordHash = _passwordHasher.HashPassword(user, registerDto.Password);
+            var result = await _userManager.CreateAsync(user, registerDto.Password);
+            if (!result.Succeeded)
+            {
+                var errors = string.Join(", ", result.Errors.Select(e => e.Description));
+                throw new Exception($"Registration failed: {errors}");
+            }
 
-            await _userService.AddUserAsync(user);
+            
 
             return true;
         }
@@ -102,35 +108,47 @@ namespace RabbitQuestAPI.Infrastructure.Services
 
             if (user == null || user.RefreshTokenExpiryTime <= DateTime.UtcNow)
             {
-                throw new Exception("Invalid refresh token");
+                throw new Exception("Invalid or expired refresh token");
             }
 
-            var newAccessToken = GenerateJwtToken(user);
+            var newAccessToken = await GenerateJwtTokenAsync(user);
             var newRefreshToken = GenerateRefreshToken();
 
             user.RefreshToken = newRefreshToken;
             user.RefreshTokenExpiryTime = DateTime.UtcNow.AddDays(7);
             await _userService.UpdateUserTokensAsync(user, newRefreshToken, user.RefreshTokenExpiryTime.GetValueOrDefault());
 
+            var roles = await _userManager.GetRolesAsync(user);
+            bool isAdmin = roles.Contains("Admin");
 
             return new LoginResponseDto
             {
                 AccessToken = newAccessToken,
-                RefreshToken = newRefreshToken
+                RefreshToken = newRefreshToken,
+                Username = user.UserName,
+                IsAdmin = isAdmin
             };
         }
 
-        private string GenerateJwtToken(User user)
+        private async Task<string> GenerateJwtTokenAsync(User user)
         {
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["Jwt:Key"]));
             var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
-            var claims = new[]
+            var claims = new List<Claim>
             {
-            new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
-            new Claim(JwtRegisteredClaimNames.Email, user.Email),
-            new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
-        };
+                new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
+                new Claim(JwtRegisteredClaimNames.Email, user.Email),
+                new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
+                new Claim(ClaimTypes.Name, user.UserName)
+            };
+
+            // Add roles to claims
+            var roles = await _userManager.GetRolesAsync(user);
+            foreach (var role in roles)
+            {
+                claims.Add(new Claim(ClaimTypes.Role, role));
+            }
 
             var token = new JwtSecurityToken(
                 issuer: _configuration["Jwt:Issuer"],
@@ -152,7 +170,49 @@ namespace RabbitQuestAPI.Infrastructure.Services
                 return Convert.ToBase64String(randomNumber);
             }
         }
+
+        public async Task<bool> RevokeRefreshTokenAsync(string refreshToken)
+        {
+            var user = await _userService.GetByRefreshTokenAsync(refreshToken);
+            if (user == null)
+            {
+                return false;
+            }
+
+            user.RefreshToken = null;
+            user.RefreshTokenExpiryTime = null;
+            await _userService.UpdateUserTokensAsync(user, null, DateTime.MinValue);
+
+            return true;
+        }
+
+        public async Task<bool> ValidateTokenAsync(string token)
+        {
+            if (string.IsNullOrEmpty(token))
+                return false;
+
+            var tokenHandler = new JwtSecurityTokenHandler();
+            var key = Encoding.ASCII.GetBytes(_configuration["Jwt:Key"]);
+
+            try
+            {
+                tokenHandler.ValidateToken(token, new TokenValidationParameters
+                {
+                    ValidateIssuerSigningKey = true,
+                    IssuerSigningKey = new SymmetricSecurityKey(key),
+                    ValidateIssuer = true,
+                    ValidateAudience = true,
+                    ValidIssuer = _configuration["Jwt:Issuer"],
+                    ValidAudience = _configuration["Jwt:Audience"],
+                    ClockSkew = TimeSpan.Zero
+                }, out SecurityToken validatedToken);
+
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
     }
-
 }
-

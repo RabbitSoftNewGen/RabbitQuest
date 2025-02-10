@@ -37,8 +37,8 @@ namespace RabbitQuestAPI.Infrastructure.Services
 
             if (!string.IsNullOrWhiteSpace(searchTerm))
             {
-                quizzes = quizzes.Where(q => EF.Functions.FreeText(q.Title, searchTerm)
-                          || EF.Functions.FreeText(q.Description, searchTerm));
+                quizzes = quizzes.Where(q => EF.Functions.Like(q.Title, $"%{searchTerm}%"))
+                                .Union(quizzes.Where(q => EF.Functions.Like(q.Description, $"%{searchTerm}%")));
             }
 
             return  quizzes.Select(q => new QuizDto
