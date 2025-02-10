@@ -75,7 +75,7 @@ builder.Services.AddAuthentication(options =>
 })
 .AddJwtBearer(options =>
 {
-    logger.LogInformation("Configuring JWT Bearer authentication...");
+    
 
 
 
