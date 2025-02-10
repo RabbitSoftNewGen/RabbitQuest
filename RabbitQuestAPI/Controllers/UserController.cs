@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using RabbitQuestAPI.Application.DTO;
@@ -12,17 +13,27 @@ public class UserController : ControllerBase
 {
     private readonly IUserService _userService;
     private readonly UserManager<User> _userManager;
+    private readonly ILogger<UserController> _logger;
 
-    public UserController(IUserService userService, UserManager<User> userManager)
+    public UserController(
+        IUserService userService,
+        UserManager<User> userManager,
+        ILogger<UserController> logger)
     {
         _userService = userService;
         _userManager = userManager;
+        _logger = logger;
     }
 
     [HttpPost("{userId}/avatar")]
-    [Authorize]
+    [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]  // Specify scheme explicitly
     public async Task<IActionResult> UploadAvatar(int userId, IFormFile avatarFile)
     {
+        _logger.LogInformation("UploadAvatar called. Auth Status: {IsAuthenticated}, Type: {AuthType}",
+            User.Identity?.IsAuthenticated, User.Identity?.AuthenticationType);
+        _logger.LogInformation("Claims: {Claims}",
+            string.Join(", ", User.Claims.Select(c => $"{c.Type}: {c.Value}")));
+
         try
         {
             if (avatarFile == null || avatarFile.Length == 0)
@@ -30,34 +41,59 @@ public class UserController : ControllerBase
                 return BadRequest("Avatar file is required.");
             }
 
-            var currentUserId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
+            var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userIdClaim))
+            {
+                _logger.LogWarning("No NameIdentifier claim found in token");
+                return Unauthorized("User ID not found in token");
+            }
+
+            if (!int.TryParse(userIdClaim, out int currentUserId))
+            {
+                _logger.LogWarning("Invalid user ID format in token: {UserId}", userIdClaim);
+                return BadRequest("Invalid user ID format");
+            }
+
             if (currentUserId != userId)
             {
-                return Forbid("You can only upload avatar for your own profile.");
+                return Forbid();
             }
 
             string avatarUrl = await _userService.UploadAvatarAsync(userId, avatarFile);
             return Ok(new { AvatarURL = avatarUrl });
         }
-        catch (ArgumentException ex)
-        {
-            return NotFound(ex.Message);
-        }
         catch (Exception ex)
         {
+            _logger.LogError(ex, "Error uploading avatar for user {UserId}", userId);
             return StatusCode(500, "An error occurred while uploading the avatar.");
         }
     }
 
     [HttpGet("profile")]
-    [Authorize]
+    [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
     public async Task<ActionResult<UserProfileDto>> GetUserProfile()
     {
+        _logger.LogInformation("GetUserProfile called. Auth Status: {IsAuthenticated}, Type: {AuthType}",
+            User.Identity?.IsAuthenticated, User.Identity?.AuthenticationType);
+        _logger.LogInformation("Claims: {Claims}",
+            string.Join(", ", User.Claims.Select(c => $"{c.Type}: {c.Value}")));
+
         try
         {
-            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
-            var userProfile = await _userService.GetUserProfileAsync(userId);
+            var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userIdClaim))
+            {
+                _logger.LogWarning("No NameIdentifier claim found in token");
+                return Unauthorized("User ID not found in token");
+            }
 
+            if (!int.TryParse(userIdClaim, out int userId))
+            {
+                _logger.LogWarning("Invalid user ID format in token: {UserId}", userIdClaim);
+                return BadRequest("Invalid user ID format");
+            }
+
+            var userProfile = await _userService.GetUserProfileAsync(userId);
             if (userProfile == null)
             {
                 return NotFound("User not found.");
@@ -67,6 +103,7 @@ public class UserController : ControllerBase
         }
         catch (Exception ex)
         {
+            _logger.LogError(ex, "Error retrieving user profile");
             return StatusCode(500, "An error occurred while retrieving the user profile.");
         }
     }
@@ -77,7 +114,6 @@ public class UserController : ControllerBase
         try
         {
             var avatarUrl = await _userService.GetUserAvatarAsync(userId);
-
             if (string.IsNullOrEmpty(avatarUrl))
             {
                 return NotFound("Avatar not found.");
@@ -87,6 +123,7 @@ public class UserController : ControllerBase
         }
         catch (Exception ex)
         {
+            _logger.LogError(ex, "Error retrieving avatar for user {UserId}", userId);
             return StatusCode(500, "An error occurred while retrieving the avatar.");
         }
     }
