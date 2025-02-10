@@ -10,9 +10,9 @@ using System.Threading.Tasks;
 
 namespace RabbitQuestAPI.Infrastructure.Repositories
 {
-    public class UserRepository : RepositoryBase<User>, IUserRepository
+    public class CategoryRepository : RepositoryBase<Category>, ICategoryRepository
     {
-        public UserRepository(ApplicationDbContext context) : base(context)
+        public CategoryRepository(ApplicationDbContext context) : base(context)
         {
         }
     }

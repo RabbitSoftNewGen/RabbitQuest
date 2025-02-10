@@ -6,9 +6,10 @@ using System.Threading.Tasks;
 
 namespace RabbitQuestAPI.Application.DTO
 {
-    public class LoginDto
+    public class UserDto
     {
-        public string Email { get; set; }
-        public string Password { get; set; }
+        public string Username { get; set; }
+        public string? AvatarURL { get; set; }
+        
     }
 }

@@ -6,11 +6,10 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-
 namespace RabbitQuestAPI.Application.Interfaces
 {
-    public interface IUserRepository : IRepositoryBase<User>
+    public interface ICategoryRepository : IRepositoryBase<Category>
     {
-        
+   
     }
 }

@@ -28,6 +28,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\RabbitQuestAPI.Application\RabbitQuestAPI.Application.csproj" />
+    <ProjectReference Include="..\RabbitQuestAPI.Domain\RabbitQuestAPI.Domain.csproj" />
     <ProjectReference Include="..\RabbitQuestAPI.Infrastructure\RabbitQuestAPI.Infrastructure.csproj" />
   </ItemGroup>
 

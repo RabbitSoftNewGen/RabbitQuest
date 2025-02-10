@@ -1,14 +1,12 @@
 ﻿using Microsoft.AspNetCore.Identity;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
 using RabbitQuestAPI.Application.DTO;
+using RabbitQuestAPI.Application.Interfaces;
 using RabbitQuestAPI.Application.Services;
 using RabbitQuestAPI.Domain.Entities;
 using System;
-using System.Collections.Generic;
 using System.IdentityModel.Tokens.Jwt;
-using System.Linq;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
@@ -18,14 +16,18 @@ namespace RabbitQuestAPI.Infrastructure.Services
 {
     public class AuthService : IAuthService
     {
-        private readonly ApplicationDbContext _context;
+        private readonly IUserService _userService;
         private readonly IConfiguration _configuration;
         private readonly IPasswordHasher<User> _passwordHasher;
         private readonly UserManager<User> _userManager;
 
-        public AuthService(ApplicationDbContext context, IConfiguration configuration, IPasswordHasher<User> passwordHasher, UserManager<User> userManager)
+        public AuthService(
+            IUserService userService,
+            IConfiguration configuration,
+            IPasswordHasher<User> passwordHasher,
+            UserManager<User> userManager)
         {
-            _context = context;
+            _userService = userService;
             _configuration = configuration;
             _passwordHasher = passwordHasher;
             _userManager = userManager;
@@ -33,7 +35,7 @@ namespace RabbitQuestAPI.Infrastructure.Services
 
         public async Task<LoginResponseDto> LoginAsync(LoginDto loginDto)
         {
-            var user = await _context.Users.FirstOrDefaultAsync(u => u.UserName == loginDto.UserName);
+            var user = await _userService.GetByEmailAsync(loginDto.Email);
 
             if (user == null || _passwordHasher.VerifyHashedPassword(user, user.PasswordHash, loginDto.Password) != PasswordVerificationResult.Success)
             {
@@ -43,16 +45,15 @@ namespace RabbitQuestAPI.Infrastructure.Services
             var accessToken = GenerateJwtToken(user);
             var refreshToken = GenerateRefreshToken();
 
-            // Оновлюємо refresh token в базі даних
             user.RefreshToken = refreshToken;
             user.RefreshTokenExpiryTime = DateTime.UtcNow.AddDays(7);
-            await _context.SaveChangesAsync();
+            await _userService.UpdateUserTokensAsync(user, refreshToken, user.RefreshTokenExpiryTime.GetValueOrDefault());
 
-            // Перевіряємо, чи користувач є адміністратором
+
+
             var roles = await _userManager.GetRolesAsync(user);
             bool isAdmin = roles.Contains("Admin");
 
-            // Повертаємо токени та додаткові дані
             return new LoginResponseDto
             {
                 AccessToken = accessToken,
@@ -64,7 +65,7 @@ namespace RabbitQuestAPI.Infrastructure.Services
 
         public async Task<bool> RegisterAsync(RegisterDto registerDto)
         {
-            if (await _context.Users.AnyAsync(u => u.Email == registerDto.Email))
+            if (await _userService.ExistsByEmailAsync(registerDto.Email))
             {
                 throw new Exception("User already exists");
             }
@@ -77,31 +78,27 @@ namespace RabbitQuestAPI.Infrastructure.Services
 
             user.PasswordHash = _passwordHasher.HashPassword(user, registerDto.Password);
 
-            await _context.Users.AddAsync(user);
-            await _context.SaveChangesAsync();
+            await _userService.AddUserAsync(user);
 
             return true;
         }
 
         public async Task<LoginResponseDto> RegisterAndLoginAsync(RegisterDto registerDto)
         {
-           
             await RegisterAsync(registerDto);
 
-            
             var loginDto = new LoginDto
             {
-                UserName = registerDto.Username,
+                Email = registerDto.Email,
                 Password = registerDto.Password
             };
 
-           
             return await LoginAsync(loginDto);
         }
 
         public async Task<LoginResponseDto> RefreshTokenAsync(string refreshToken)
         {
-            var user = await _context.Users.FirstOrDefaultAsync(u => u.RefreshToken == refreshToken);
+            var user = await _userService.GetByRefreshTokenAsync(refreshToken);
 
             if (user == null || user.RefreshTokenExpiryTime <= DateTime.UtcNow)
             {
@@ -111,10 +108,10 @@ namespace RabbitQuestAPI.Infrastructure.Services
             var newAccessToken = GenerateJwtToken(user);
             var newRefreshToken = GenerateRefreshToken();
 
-       
             user.RefreshToken = newRefreshToken;
             user.RefreshTokenExpiryTime = DateTime.UtcNow.AddDays(7);
-            await _context.SaveChangesAsync();
+            await _userService.UpdateUserTokensAsync(user, newRefreshToken, user.RefreshTokenExpiryTime.GetValueOrDefault());
+
 
             return new LoginResponseDto
             {
@@ -130,16 +127,16 @@ namespace RabbitQuestAPI.Infrastructure.Services
 
             var claims = new[]
             {
-                new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
-                new Claim(JwtRegisteredClaimNames.Email, user.Email),
-                new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
-            };
+            new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
+            new Claim(JwtRegisteredClaimNames.Email, user.Email),
+            new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
+        };
 
             var token = new JwtSecurityToken(
                 issuer: _configuration["Jwt:Issuer"],
                 audience: _configuration["Jwt:Audience"],
                 claims: claims,
-                expires: DateTime.UtcNow.AddMinutes(15), 
+                expires: DateTime.UtcNow.AddMinutes(15),
                 signingCredentials: credentials
             );
 
@@ -156,4 +153,6 @@ namespace RabbitQuestAPI.Infrastructure.Services
             }
         }
     }
+
 }
+

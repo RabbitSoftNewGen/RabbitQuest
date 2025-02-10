@@ -3,10 +3,12 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.IdentityModel.Tokens;
+using RabbitQuestAPI.Application.Interfaces;
 using RabbitQuestAPI.Application.Services;
 using RabbitQuestAPI.Domain.Entities;
 using RabbitQuestAPI.Infrastructure;
 using RabbitQuestAPI.Infrastructure.Helpers;
+using RabbitQuestAPI.Infrastructure.Repositories;
 using RabbitQuestAPI.Infrastructure.Services;
 using System.Text;
 
@@ -40,6 +42,12 @@ builder.Services.AddAuthorization();
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+builder.Services.AddScoped<IQuizService, QuizService>();
+builder.Services.AddScoped<IQuizRepository, QuizRepository>();
+builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddScoped<IUserRepository, UserRepository>();
+builder.Services.AddScoped<ICategoryService, CategoryService>();
+builder.Services.AddScoped<ICategoryRepository, CategoryRepository>();
 
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlServer(

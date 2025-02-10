@@ -14,5 +14,7 @@ namespace RabbitQuestAPI.Application.Interfaces
         Task UpdateAsync(T entity);
         Task DeleteAsync(T entity);
         Task SaveChangesAsync();
+
+        IQueryable<T> GetQueryable();
     }
 }

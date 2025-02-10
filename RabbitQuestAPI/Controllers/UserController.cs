@@ -1,64 +1,93 @@
-﻿using Microsoft.AspNetCore.Http;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using RabbitQuestAPI.Application.DTO;
 using RabbitQuestAPI.Application.Services;
+using RabbitQuestAPI.Domain.Entities;
+using System.Security.Claims;
 
-namespace RabbitQuestAPI.Controllers
+[Route("api/[controller]")]
+[ApiController]
+public class UserController : ControllerBase
 {
-    [Route("api/[controller]")]
-    [ApiController]
-    public class UserController : ControllerBase
+    private readonly IUserService _userService;
+    private readonly UserManager<User> _userManager;
+
+    public UserController(IUserService userService, UserManager<User> userManager)
     {
-        private readonly IUserService _userService;
+        _userService = userService;
+        _userManager = userManager;
+    }
 
-        public UserController(IUserService userService)
+    [HttpPost("{userId}/avatar")]
+    [Authorize]
+    public async Task<IActionResult> UploadAvatar(int userId, IFormFile avatarFile)
+    {
+        try
         {
-            _userService = userService;
+            if (avatarFile == null || avatarFile.Length == 0)
+            {
+                return BadRequest("Avatar file is required.");
+            }
+
+            var currentUserId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
+            if (currentUserId != userId)
+            {
+                return Forbid("You can only upload avatar for your own profile.");
+            }
+
+            string avatarUrl = await _userService.UploadAvatarAsync(userId, avatarFile);
+            return Ok(new { AvatarURL = avatarUrl });
         }
-
-        [HttpPost("{userId}/avatar")] 
-        public async Task<IActionResult> UploadAvatar(int userId, IFormFile avatarFile)
+        catch (ArgumentException ex)
         {
-            try
-            {
-                if (avatarFile == null || avatarFile.Length == 0)
-                {
-                    return BadRequest("Avatar file is required.");
-                }
-
-
-                string avatarUrl = await _userService.UploadAvatarAsync(userId, avatarFile);
-
-                return Ok(new { AvatarURL = avatarUrl });  
-
-            }
-            catch (ArgumentException ex) 
-            {
-                return NotFound(ex.Message); 
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, ex.Message); 
-            }
+            return NotFound(ex.Message);
         }
-
-        [HttpGet("{userId}/avatar")]
-        public async Task<ActionResult> GetUserAvatar(int userId)
+        catch (Exception ex)
         {
-            try
-            {
-                var avatarUrl = await _userService.GetUserAvatarAsync(userId);
+            return StatusCode(500, "An error occurred while uploading the avatar.");
+        }
+    }
 
-                if (string.IsNullOrEmpty(avatarUrl))
-                {
-                    return NotFound("Avatar not found.");
-                }
+    [HttpGet("profile")]
+    [Authorize]
+    public async Task<ActionResult<UserProfileDto>> GetUserProfile()
+    {
+        try
+        {
+            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
+            var userProfile = await _userService.GetUserProfileAsync(userId);
 
-                return Ok(new { AvatarURL = avatarUrl });
-            }
-            catch (Exception ex)
+            if (userProfile == null)
             {
-                return BadRequest(ex.Message);
+                return NotFound("User not found.");
             }
+
+            return Ok(userProfile);
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, "An error occurred while retrieving the user profile.");
+        }
+    }
+
+    [HttpGet("{userId}/avatar")]
+    public async Task<ActionResult> GetUserAvatar(int userId)
+    {
+        try
+        {
+            var avatarUrl = await _userService.GetUserAvatarAsync(userId);
+
+            if (string.IsNullOrEmpty(avatarUrl))
+            {
+                return NotFound("Avatar not found.");
+            }
+
+            return Ok(new { AvatarURL = avatarUrl });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, "An error occurred while retrieving the avatar.");
         }
     }
 }
