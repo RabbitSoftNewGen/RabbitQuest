@@ -142,12 +142,29 @@ public class UserService : IUserService
             })
             .ToList();
 
+        var createdQuizzes = userQuizStatuses
+            .Where(uqs => uqs.QuizStatus == QuizStatus.Created)
+            .Select(uqs => new QuizDto
+            {
+                Id = uqs.QuizId,
+                Title = uqs.Quiz.Title,
+                Description = uqs.Quiz.Description,
+                Category = new CategoryDto
+                {
+                    Id = uqs.Quiz.Category.Id,
+                    Name = uqs.Quiz.Category.Name
+                }
+            })
+            .ToList();
+
         return new UserProfileDto
         {
             Username = user.UserName,
             AvatarURL = user.AvatarURL,
             CompletedQuizzes = completedQuizzes,
-            NotCompletedQuizzes = notCompletedQuizzes
+            NotCompletedQuizzes = notCompletedQuizzes,
+            CreatedQuizzes = createdQuizzes
+
         };
     }
 

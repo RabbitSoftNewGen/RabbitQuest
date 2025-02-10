@@ -10,5 +10,7 @@ namespace RabbitQuestAPI.Application.DTO
     {
         public List<QuizDto> CompletedQuizzes { get; set; } = new();
         public List<QuizDto> NotCompletedQuizzes { get; set; } = new();
+
+        public List<QuizDto> CreatedQuizzes { get; set; } = new();
     }
 }

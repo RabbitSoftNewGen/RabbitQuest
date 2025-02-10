@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace RabbitQuestAPI.Domain.Entities
 {
-    public enum QuizStatus { Clicked, Completed }
+    public enum QuizStatus { Clicked, Completed, Created }
     public class UserQuizStatus
     {
         public int Id { get; set; }
