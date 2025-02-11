@@ -180,7 +180,10 @@ namespace RabbitQuestAPI.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<string>("CorrectVariant")
+                    b.Property<string>("Answers")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("CorrectAnswers")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
@@ -201,9 +204,6 @@ namespace RabbitQuestAPI.Migrations
 
                     b.Property<string>("Title")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("Variants")
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Video")

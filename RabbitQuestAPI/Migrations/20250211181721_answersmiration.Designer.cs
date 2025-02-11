@@ -12,8 +12,8 @@ using RabbitQuestAPI.Infrastructure;
 namespace RabbitQuestAPI.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20250208200518_InitialCreate2")]
-    partial class InitialCreate2
+    [Migration("20250211181721_answersmiration")]
+    partial class answersmiration
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -183,7 +183,10 @@ namespace RabbitQuestAPI.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<string>("CorrectVariant")
+                    b.Property<string>("Answers")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("CorrectAnswers")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
@@ -204,9 +207,6 @@ namespace RabbitQuestAPI.Migrations
 
                     b.Property<string>("Title")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("Variants")
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Video")

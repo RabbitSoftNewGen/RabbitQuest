@@ -14,17 +14,20 @@ namespace RabbitQuestAPI.Infrastructure.Services
 {
     public class QuizService : IQuizService
     {
-        private readonly IQuizRepository _quizRepository; 
+        private readonly IQuizRepository _quizRepository;
+        private readonly IUserQuizStatusRepository _userQuizStatusRepository;
 
-        public QuizService(IQuizRepository quizRepository)
+        public QuizService(IQuizRepository quizRepository, IUserQuizStatusRepository userQuizStatusRepository)
         {
             _quizRepository = quizRepository;
+            _userQuizStatusRepository = userQuizStatusRepository;
         }
 
         public async Task<IEnumerable<UserQuizStatus>> GetUserQuizStatusesAsync(int userId)
         {
-            return await _quizRepository.GetQueryable()
-                .SelectMany(q => q.UserQuizStatuses)
+            return await _userQuizStatusRepository.GetQueryable()
+                .Include(uqs => uqs.Quiz)
+                    .ThenInclude(q => q.Category)
                 .Where(uqs => uqs.UserId == userId)
                 .ToListAsync();
         }

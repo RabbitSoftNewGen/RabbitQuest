@@ -1,21 +1,25 @@
 ﻿using RabbitQuestAPI.Domain.Entities;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
 namespace RabbitQuestAPI.Application.DTO
 {
-    public class QuizDto // quiz dto without questions
+    public class CreateQuizDto
     {
-        public int Id { get; set; }
+        [Required]
         public string Title { get; set; }
 
+        [Required]
         public string Description { get; set; }
 
-        public CategoryDto Category { get; set; }
-        public DateTime? CompletedAt { get; set; }
+        public string Category { get; set; }
+
+        public List<QuestionDto> Questions { get; set; }
+
 
     }
 }

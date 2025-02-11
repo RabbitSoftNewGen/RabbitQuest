@@ -136,4 +136,7 @@ public class UserController : ControllerBase
             return StatusCode(500, "An error occurred while retrieving the avatar.");
         }
     }
+
+
+   
 }

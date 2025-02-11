@@ -76,10 +76,6 @@ builder.Services.AddAuthentication(options =>
 .AddJwtBearer(options =>
 {
     
-
-
-
-    
     options.TokenValidationParameters = new TokenValidationParameters
     {
         ValidateIssuer = true,
@@ -144,6 +140,7 @@ builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<ICategoryService, CategoryService>();
 builder.Services.AddScoped<ICategoryRepository, CategoryRepository>();
+builder.Services.AddScoped<IUserQuizStatusRepository, UserQuizStatusRepository>();
 
 logger.LogInformation("Configuring database connection...");
 
