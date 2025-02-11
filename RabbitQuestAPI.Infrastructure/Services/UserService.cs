@@ -141,6 +141,44 @@ public class UserService : IUserService
         await _userRepository.SaveChangesAsync();
     }
 
+    public async Task<double?> GetUserRatingAsync(int userId)
+    {
+        var user = await _userManager.FindByIdAsync(userId.ToString());
+
+        if (user == null)
+        {
+            return null;
+        }
+
+        var userQuizStatuses = await _quizService.GetUserQuizStatusesAsync(userId);
+
+        // Створені квізи
+        var createdQuizzes = userQuizStatuses
+                .Where(uqs => uqs.QuizStatus == QuizStatus.Created)
+                .Select(uqs => new QuizDto
+                {
+                    Id = uqs.QuizId,
+                    Title = uqs.Quiz.Title,
+                    Description = uqs.Quiz.Description,
+                    Category = new CategoryDto
+                    {
+                        Id = uqs.Quiz.Category.Id,
+                        Name = uqs.Quiz.Category.Name
+                    },
+                    // Використовуємо вже наявне значення рейтингу квіза
+                    Rating = uqs.Quiz.Rating // Використовуємо властивість Rating
+                })
+                .ToList();
+
+        // Обчислюємо середній рейтинг всіх створених квізів
+        double averageRating = createdQuizzes.Any()
+            ? createdQuizzes.Average(q => q.Rating)
+            : 0.0;
+
+        return averageRating;
+
+    }
+
     public async Task<UserProfileDto> GetUserProfileAsync(int userId)
     {
         var user = await _userManager.FindByIdAsync(userId.ToString());
@@ -151,6 +189,29 @@ public class UserService : IUserService
         }
 
         var userQuizStatuses = await _quizService.GetUserQuizStatusesAsync(userId);
+
+        // Створені квізи
+        var createdQuizzes = userQuizStatuses
+                .Where(uqs => uqs.QuizStatus == QuizStatus.Created)
+                .Select(uqs => new QuizDto
+                {
+                    Id = uqs.QuizId,
+                    Title = uqs.Quiz.Title,
+                    Description = uqs.Quiz.Description,
+                    Category = new CategoryDto
+                    {
+                        Id = uqs.Quiz.Category.Id,
+                        Name = uqs.Quiz.Category.Name
+                    },
+                    // Використовуємо вже наявне значення рейтингу квіза
+                    Rating = uqs.Quiz.Rating // Використовуємо властивість Rating
+                })
+                .ToList();
+
+        // Обчислюємо середній рейтинг всіх створених квізів
+        double averageRating = createdQuizzes.Any()
+            ? createdQuizzes.Average(q => q.Rating)
+            : 0.0;
 
         var completedQuizzes = userQuizStatuses
             .Where(uqs => uqs.QuizStatus == QuizStatus.Completed)
@@ -171,29 +232,14 @@ public class UserService : IUserService
             })
             .ToList();
 
-        var createdQuizzes = userQuizStatuses
-            .Where(uqs => uqs.QuizStatus == QuizStatus.Created)
-            .Select(uqs => new QuizDto
-            {
-                Id = uqs.QuizId,
-                Title = uqs.Quiz.Title,
-                Description = uqs.Quiz.Description,
-                Category = new CategoryDto
-                {
-                    Id = uqs.Quiz.Category.Id,
-                    Name = uqs.Quiz.Category.Name
-                }
-            })
-            .ToList();
-
         return new UserProfileDto
         {
             Username = user.UserName,
             AvatarURL = user.AvatarURL,
             CompletedQuizzes = completedQuizzes,
             NotCompletedQuizzes = notCompletedQuizzes,
-            CreatedQuizzes = createdQuizzes
-
+            CreatedQuizzes = createdQuizzes,
+            AverageRating = averageRating 
         };
     }
 

@@ -10,6 +10,8 @@ namespace RabbitQuestAPI.Application.DTO
     {
         public string Username { get; set; }
         public string? AvatarURL { get; set; }
-        
+
+        public double? Rating { get; set; }
+
     }
 }

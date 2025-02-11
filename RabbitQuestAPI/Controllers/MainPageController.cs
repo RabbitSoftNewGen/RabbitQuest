@@ -5,6 +5,8 @@ using RabbitQuestAPI.Infrastructure;
 using System.Linq; 
 using Microsoft.AspNetCore.Authorization;
 using RabbitQuestAPI.Domain.Entities;
+using RabbitQuestAPI.Infrastructure.Repositories;
+using RabbitQuestAPI.Application.Interfaces;
 
 namespace RabbitQuestAPI.Controllers
 {
@@ -13,10 +15,12 @@ namespace RabbitQuestAPI.Controllers
     public class MainPageController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
+        private readonly IUserRepository _userRepository;
 
-        public MainPageController(ApplicationDbContext context)
+        public MainPageController(ApplicationDbContext context, IUserRepository userRepository)
         {
             _context = context;
+            _userRepository = userRepository;
         }
 
         [HttpGet("quizzes")]
@@ -50,22 +54,28 @@ namespace RabbitQuestAPI.Controllers
         }
 
         [HttpGet("users")]
-        public async Task<ActionResult<IEnumerable<QuizDto>>> GetAllUsers(string? searchTerm = null)
+        public async Task<ActionResult<IEnumerable<UserDto>>> GetAllUsers(string? searchTerm = null)
         {
-            var query = _context.Users
-         .AsQueryable();
+            var query = _userRepository.GetQueryable()
+                .Include(u => u.UserQuizStatuses)
+                    .ThenInclude(uqs => uqs.Quiz)
+                .AsQueryable();
 
             if (!string.IsNullOrEmpty(searchTerm))
             {
-  
                 query = query.Where(q => EF.Functions.Like(q.UserName, $"%{searchTerm}%"));
             }
 
             var users = await query
-                .Select(q => new UserDto
+                .Select(u => new UserDto
                 {
-                    Username = q.UserName,
-                    AvatarURL = q.AvatarURL
+                    Username = u.UserName,
+                    AvatarURL = u.AvatarURL,
+                    Rating = u.UserQuizStatuses
+                        .Where(uqs => uqs.QuizStatus == QuizStatus.Created && uqs.Quiz != null)
+                        .Select(uqs => uqs.Quiz.Rating)
+                        .DefaultIfEmpty()
+                        .Average()
                 })
                 .ToListAsync();
 
