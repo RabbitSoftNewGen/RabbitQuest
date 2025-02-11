@@ -25,9 +25,9 @@ public class UserController : ControllerBase
         _logger = logger;
     }
 
-    [HttpPost("{userId}/avatar")]
-    [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]  // Specify scheme explicitly
-    public async Task<IActionResult> UploadAvatar(int userId, IFormFile avatarFile)
+    [HttpPost("avatar")]
+    [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
+    public async Task<IActionResult> UploadAvatar(IFormFile avatarFile)
     {
         _logger.LogInformation("UploadAvatar called. Auth Status: {IsAuthenticated}, Type: {AuthType}",
             User.Identity?.IsAuthenticated, User.Identity?.AuthenticationType);
@@ -54,17 +54,12 @@ public class UserController : ControllerBase
                 return BadRequest("Invalid user ID format");
             }
 
-            if (currentUserId != userId)
-            {
-                return Forbid();
-            }
-
-            string avatarUrl = await _userService.UploadAvatarAsync(userId, avatarFile);
+            string avatarUrl = await _userService.UploadAvatarAsync(currentUserId, avatarFile);
             return Ok(new { AvatarURL = avatarUrl });
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error uploading avatar for user {UserId}", userId);
+            _logger.LogError(ex, "Error uploading avatar");
             return StatusCode(500, "An error occurred while uploading the avatar.");
         }
     }
@@ -108,12 +103,26 @@ public class UserController : ControllerBase
         }
     }
 
-    [HttpGet("{userId}/avatar")]
-    public async Task<ActionResult> GetUserAvatar(int userId)
+    [HttpGet("avatar")]
+    [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
+    public async Task<ActionResult> GetUserAvatar()
     {
         try
         {
-            var avatarUrl = await _userService.GetUserAvatarAsync(userId);
+            var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userIdClaim))
+            {
+                _logger.LogWarning("No NameIdentifier claim found in token");
+                return Unauthorized("User ID not found in token");
+            }
+
+            if (!int.TryParse(userIdClaim, out int currentUserId))
+            {
+                _logger.LogWarning("Invalid user ID format in token: {UserId}", userIdClaim);
+                return BadRequest("Invalid user ID format");
+            }
+
+            var avatarUrl = await _userService.GetUserAvatarAsync(currentUserId);
             if (string.IsNullOrEmpty(avatarUrl))
             {
                 return NotFound("Avatar not found.");
@@ -123,7 +132,7 @@ public class UserController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error retrieving avatar for user {UserId}", userId);
+            _logger.LogError(ex, "Error retrieving avatar");
             return StatusCode(500, "An error occurred while retrieving the avatar.");
         }
     }

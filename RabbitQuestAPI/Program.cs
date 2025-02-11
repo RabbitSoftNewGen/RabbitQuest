@@ -213,7 +213,11 @@ using (var scope = app.Services.CreateScope())
         throw; // Rethrow to prevent application startup if seeding fails
     }
 }
-
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new PhysicalFileProvider(Path.Combine(Directory.GetCurrentDirectory(), "Storage")),
+    RequestPath = "/uploads/avatars"
+});
 // Configure middleware pipeline
 logger.LogInformation("Configuring middleware pipeline...");
 app.UseAuthentication();

@@ -35,4 +35,8 @@
     <ProjectReference Include="..\RabbitQuestAPI.Infrastructure\RabbitQuestAPI.Infrastructure.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="uploads\avatars\" />
+  </ItemGroup>
+
 </Project>

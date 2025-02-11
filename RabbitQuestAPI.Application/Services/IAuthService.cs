@@ -13,5 +13,9 @@ namespace RabbitQuestAPI.Application.Services
         Task<LoginResponseDto> RefreshTokenAsync(string refreshToken); 
         Task<bool> RegisterAsync(RegisterDto registerDto);
         Task<LoginResponseDto> RegisterAndLoginAsync(RegisterDto registerDto);
+
+        
+
+
     }
 }

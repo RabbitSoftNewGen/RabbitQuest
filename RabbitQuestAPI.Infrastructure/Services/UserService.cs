@@ -20,6 +20,8 @@ public class UserService : IUserService
     private readonly UserManager<User> _userManager;
     private readonly IQuizService _quizService;
 
+
+
     public UserService(
         ApplicationDbContext context,
         IConfiguration configuration,
@@ -53,31 +55,57 @@ public class UserService : IUserService
             throw new ArgumentException("File is empty.");
         }
 
-        // Generate a unique file name
+        // Виведемо поточну директорію
+        Console.WriteLine($"Current directory: {Directory.GetCurrentDirectory()}");
+        Console.WriteLine($"Storage base path: {_storageBasePath}");
+
         var fileName = Guid.NewGuid().ToString() + Path.GetExtension(file.FileName);
         var filePath = Path.Combine(_storageBasePath, "uploads", "avatars", fileName);
 
-        // Ensure the directory exists
-        Directory.CreateDirectory(Path.GetDirectoryName(filePath));
+        Console.WriteLine($"Trying to save file to: {filePath}");
 
-        // Save the file to the local file system
-        using (var stream = new FileStream(filePath, FileMode.Create))
+        // Показати вміст директорії
+        if (Directory.Exists(_storageBasePath))
         {
-            await file.CopyToAsync(stream);
+            Console.WriteLine("Files in storage path:");
+            foreach (var existingFile in Directory.GetFiles(_storageBasePath))
+            {
+                Console.WriteLine(existingFile);
+            }
+        }
+        else
+        {
+            Console.WriteLine("Storage path does not exist!");
         }
 
-        // Update the user's avatar URL in the database
-        var user = await _context.Users.FindAsync(userId);
-        if (user == null)
+        try
         {
-            throw new ArgumentException("User not found.");
+            Directory.CreateDirectory(Path.GetDirectoryName(filePath));
+            using (var stream = new FileStream(filePath, FileMode.Create))
+            {
+                await file.CopyToAsync(stream);
+            }
+
+            Console.WriteLine($"File saved successfully to {filePath}");
+
+            var user = await _context.Users.FindAsync(userId);
+            if (user == null)
+            {
+                throw new ArgumentException("User not found.");
+            }
+
+            var avatarUrl = $"/uploads/avatars/{fileName}";
+            user.AvatarURL = avatarUrl;
+            await _context.SaveChangesAsync();
+
+            return avatarUrl;
         }
-
-        var avatarUrl = $"/uploads/avatars/{fileName}"; // Construct the URL
-        user.AvatarURL = avatarUrl;
-        await _context.SaveChangesAsync();
-
-        return avatarUrl;
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error: {ex.Message}");
+            Console.WriteLine($"Stack trace: {ex.StackTrace}");
+            throw;
+        }
     }
 
     public async Task<string> GetUserAvatarAsync(int userId)
@@ -101,6 +129,7 @@ public class UserService : IUserService
     public async Task<User> GetByRefreshTokenAsync(string refreshToken)
     {
         var users = await _userRepository.GetAllAsync();
+      
         return users.FirstOrDefault(u => u.RefreshToken == refreshToken);
     }
 
