@@ -139,7 +139,7 @@ namespace RabbitQuestAPI.Controllers
                                 {
                                     if (answer.ValueKind == JsonValueKind.String)
                                     {
-                                        // Відкрита відповідь або координати
+                                        
                                         answers.Add(answer.GetString());
                                     }
                                     else if (answer.ValueKind == JsonValueKind.Object)
