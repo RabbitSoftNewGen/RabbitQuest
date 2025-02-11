@@ -17,5 +17,8 @@ namespace RabbitQuestAPI.Domain.Entities
 
         public string? RefreshToken { get; set; } 
         public DateTime? RefreshTokenExpiryTime { get; set; }
+
+        public ICollection<QuizRating> QuizRatings { get; set; }
+
     }
 }

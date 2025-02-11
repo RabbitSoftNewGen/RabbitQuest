@@ -10,6 +10,7 @@ namespace RabbitQuestAPI.Application.DTO
     {
         public string Title { get; set; }
         public string Description { get; set; }
+        public double Rating { get; set; }
         public CategoryDto Category { get; set; }
         public DateTime? CompletedAt { get; set; }
         public List<QuestionDto> Questions { get; set; } // Add this property for questions

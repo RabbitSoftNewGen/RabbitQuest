@@ -37,6 +37,7 @@ namespace RabbitQuestAPI.Controllers
                     Id = q.Id,
                     Title = q.Title,
                     Description = q.Description,
+                    Rating = q.Rating,
                     Category = new CategoryDto
                     {
                         Id = q.Category.Id,

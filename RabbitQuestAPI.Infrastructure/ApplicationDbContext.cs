@@ -21,10 +21,28 @@ namespace RabbitQuestAPI.Infrastructure
         public DbSet<Question> Questions { get; set; }
         public DbSet<Quiz> Quizzes { get; set; }
         public DbSet<UserQuizStatus> UserQuizStatuses { get; set; }
+        public DbSet<QuizRating> QuizRatings { get; set; }
+
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
+
+            modelBuilder.Entity<QuizRating>()
+    .HasKey(qr => qr.Id);
+
+            modelBuilder.Entity<QuizRating>()
+                .HasOne(qr => qr.Quiz)
+                .WithMany(q => q.Ratings)
+                .HasForeignKey(qr => qr.QuizId)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            modelBuilder.Entity<QuizRating>()
+                .HasOne(qr => qr.User)
+                .WithMany(u => u.QuizRatings)
+                .HasForeignKey(qr => qr.UserId)
+                .OnDelete(DeleteBehavior.NoAction);
+
 
             modelBuilder.Entity<Quiz>()
                 .HasOne(q => q.Category)

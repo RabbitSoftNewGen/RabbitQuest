@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace RabbitQuestAPI.Migrations
 {
     /// <inheritdoc />
-    public partial class answersmiration : Migration
+    public partial class ratings2 : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -231,6 +231,31 @@ namespace RabbitQuestAPI.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "QuizRatings",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    QuizId = table.Column<int>(type: "int", nullable: false),
+                    UserId = table.Column<int>(type: "int", nullable: false),
+                    Rating = table.Column<double>(type: "float", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_QuizRatings", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_QuizRatings_AspNetUsers_UserId",
+                        column: x => x.UserId,
+                        principalTable: "AspNetUsers",
+                        principalColumn: "Id");
+                    table.ForeignKey(
+                        name: "FK_QuizRatings_Quizzes_QuizId",
+                        column: x => x.QuizId,
+                        principalTable: "Quizzes",
+                        principalColumn: "Id");
+                });
+
+            migrationBuilder.CreateTable(
                 name: "UserQuizStatuses",
                 columns: table => new
                 {
@@ -302,6 +327,16 @@ namespace RabbitQuestAPI.Migrations
                 column: "QuizId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_QuizRatings_QuizId",
+                table: "QuizRatings",
+                column: "QuizId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_QuizRatings_UserId",
+                table: "QuizRatings",
+                column: "UserId");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_Quizzes_CategoryId",
                 table: "Quizzes",
                 column: "CategoryId");
@@ -342,6 +377,9 @@ namespace RabbitQuestAPI.Migrations
 
             migrationBuilder.DropTable(
                 name: "Questions");
+
+            migrationBuilder.DropTable(
+                name: "QuizRatings");
 
             migrationBuilder.DropTable(
                 name: "UserQuizStatuses");

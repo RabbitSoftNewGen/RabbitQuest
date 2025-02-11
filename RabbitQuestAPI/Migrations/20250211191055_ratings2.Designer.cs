@@ -12,8 +12,8 @@ using RabbitQuestAPI.Infrastructure;
 namespace RabbitQuestAPI.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20250211181721_answersmiration")]
-    partial class answersmiration
+    [Migration("20250211191055_ratings2")]
+    partial class ratings2
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -253,6 +253,32 @@ namespace RabbitQuestAPI.Migrations
                     b.ToTable("Quizzes");
                 });
 
+            modelBuilder.Entity("RabbitQuestAPI.Domain.Entities.QuizRating", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("QuizId")
+                        .HasColumnType("int");
+
+                    b.Property<double>("Rating")
+                        .HasColumnType("float");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("QuizId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("QuizRatings");
+                });
+
             modelBuilder.Entity("RabbitQuestAPI.Domain.Entities.User", b =>
                 {
                     b.Property<int>("Id")
@@ -440,6 +466,25 @@ namespace RabbitQuestAPI.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("RabbitQuestAPI.Domain.Entities.QuizRating", b =>
+                {
+                    b.HasOne("RabbitQuestAPI.Domain.Entities.Quiz", "Quiz")
+                        .WithMany("Ratings")
+                        .HasForeignKey("QuizId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.HasOne("RabbitQuestAPI.Domain.Entities.User", "User")
+                        .WithMany("QuizRatings")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.Navigation("Quiz");
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("RabbitQuestAPI.Domain.Entities.UserQuizStatus", b =>
                 {
                     b.HasOne("RabbitQuestAPI.Domain.Entities.Quiz", "Quiz")
@@ -468,11 +513,15 @@ namespace RabbitQuestAPI.Migrations
                 {
                     b.Navigation("Questions");
 
+                    b.Navigation("Ratings");
+
                     b.Navigation("UserQuizStatuses");
                 });
 
             modelBuilder.Entity("RabbitQuestAPI.Domain.Entities.User", b =>
                 {
+                    b.Navigation("QuizRatings");
+
                     b.Navigation("UserQuizStatuses");
                 });
 #pragma warning restore 612, 618

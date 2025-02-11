@@ -37,7 +37,7 @@ namespace RabbitQuestAPI.Controllers
                 // Find the quiz and include related questions and category
                 var quiz = await _quizRepository.GetQueryable()
                     .Include(q => q.Questions) // Include related questions
-                    .Include(q => q.Category)  // Include the category of the quiz
+                    .Include(q => q.Category) 
                     .FirstOrDefaultAsync(q => q.Id == id);
 
                 if (quiz == null)
@@ -50,6 +50,7 @@ namespace RabbitQuestAPI.Controllers
                 {
                     Title = quiz.Title,
                     Description = quiz.Description,
+                    Rating = quiz.Rating,
                     Category = new CategoryDto
                     {
                         Id = quiz.Category.Id,
@@ -141,6 +142,88 @@ namespace RabbitQuestAPI.Controllers
             {
                 _logger.LogError(ex, "Error creating quiz.");
                 return StatusCode(500, "An error occurred while creating the quiz.");
+            }
+        }
+
+        [HttpPost("rate")]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
+        public async Task<IActionResult> RateQuiz([FromBody] RateQuizDto rateQuizDto)
+        {
+            try
+            {
+                var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                if (string.IsNullOrEmpty(userIdClaim))
+                {
+                    _logger.LogWarning("No NameIdentifier claim found in token");
+                    return Unauthorized("User ID not found in token");
+                }
+
+                if (!int.TryParse(userIdClaim, out int userId))
+                {
+                    return BadRequest("Invalid user ID format");
+                }
+
+                var quiz = await _quizRepository.GetQueryable()
+                    .Include(q => q.UserQuizStatuses)
+                    .Include(q => q.Ratings)
+                    .FirstOrDefaultAsync(q => q.Id == rateQuizDto.QuizId);
+
+                if (quiz == null)
+                {
+                    return NotFound("Quiz not found");
+                }
+
+                // Check if user has completed the quiz
+                var userStatus = quiz.UserQuizStatuses
+                    .FirstOrDefault(s => s.UserId == userId);
+
+                //if (userStatus == null || userStatus.QuizStatus != QuizStatus.Completed)
+                //{
+                //    return BadRequest("You must complete the quiz before rating it");
+                //}
+
+               
+                //var existingRating = quiz.Ratings?.FirstOrDefault(r => r.UserId == userId);
+
+                //if (existingRating != null)
+                //{
+                  
+                //    existingRating.Rating = rateQuizDto.Rating;
+ 
+                //}
+                //else
+                //{
+                    // Add new rating
+                    if (quiz.Ratings == null)
+                    {
+                        quiz.Ratings = new List<QuizRating>();
+                    }
+
+                    quiz.Ratings.Add(new QuizRating
+                    {
+                        QuizId = quiz.Id,
+                        UserId = userId,
+                        Rating = rateQuizDto.Rating,
+          
+                    });
+                //}
+
+                // Calculate new average rating
+                quiz.Rating = quiz.Ratings.Average(r => r.Rating);
+
+                await _quizRepository.SaveChangesAsync();
+
+                return Ok(new
+                {
+                    Message = "Quiz rated successfully",
+                    NewRating = quiz.Rating,
+                    TotalRatings = quiz.Ratings.Count
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error rating quiz");
+                return StatusCode(500, "An error occurred while rating the quiz");
             }
         }
     }

@@ -33,5 +33,7 @@ namespace RabbitQuestAPI.Domain.Entities
 
 
         public ICollection<UserQuizStatus> UserQuizStatuses { get; set; }
+
+        public ICollection<QuizRating> Ratings { get; set; }
     }
 }
