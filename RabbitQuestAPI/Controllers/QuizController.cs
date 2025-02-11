@@ -7,6 +7,7 @@ using RabbitQuestAPI.Application.Interfaces;
 using RabbitQuestAPI.Application.Services;
 using RabbitQuestAPI.Domain.Entities;
 using System.Security.Claims;
+using System.Text.Json;
 
 namespace RabbitQuestAPI.Controllers
 {
@@ -82,7 +83,7 @@ namespace RabbitQuestAPI.Controllers
 
         [HttpPost("create")]
         [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
-        public async Task<IActionResult> CreateQuiz([FromBody] CreateQuizDto createQuizDto)
+        public async Task<IActionResult> CreateQuiz([FromBody] JsonElement createQuizJson)
         {
             try
             {
@@ -97,41 +98,91 @@ namespace RabbitQuestAPI.Controllers
                     return BadRequest("Invalid user ID format");
                 }
 
+                // Отримуємо заголовок, категорію та опис
+                string title = createQuizJson.GetProperty("title").GetString();
+                string description = createQuizJson.GetProperty("description").GetString();
+
+                // Обробляємо категорію
+                string categoryName = createQuizJson.TryGetProperty("category", out var categoryElement)
+                    ? categoryElement.GetString()
+                    : "Uncategorized";
+
                 var category = await _categoryRepository.GetQueryable()
-                    .FirstOrDefaultAsync(c => c.Name == createQuizDto.Category);
+                    .FirstOrDefaultAsync(c => c.Name == categoryName);
                 if (category == null)
                 {
-                    category = new Category { Name = createQuizDto.Category };
+                    category = new Category { Name = categoryName };
                     await _categoryRepository.AddAsync(category);
                     await _categoryRepository.SaveChangesAsync();
                 }
 
+                // Отримуємо питання
+                var questions = new List<Question>();
+                if (createQuizJson.TryGetProperty("questions", out JsonElement questionsElement) && questionsElement.ValueKind == JsonValueKind.Array)
+                {
+                    foreach (var questionElement in questionsElement.EnumerateArray())
+                    {
+                        string questionTitle = questionElement.GetProperty("title").GetString();
+                        int timeLimit = questionElement.GetProperty("time").GetInt32();
+                        string image = questionElement.TryGetProperty("image", out var imgElem) && imgElem.ValueKind != JsonValueKind.Null
+                            ? imgElem.GetString()
+                            : null;
+
+                        List<string> answers = new();
+                        List<string> correctAnswers = new();
+
+                        if (questionElement.TryGetProperty("answers", out JsonElement answersElement))
+                        {
+                            if (answersElement.ValueKind == JsonValueKind.Array)
+                            {
+                                foreach (var answer in answersElement.EnumerateArray())
+                                {
+                                    if (answer.ValueKind == JsonValueKind.String)
+                                    {
+                                        // Відкрита відповідь або координати
+                                        answers.Add(answer.GetString());
+                                    }
+                                    else if (answer.ValueKind == JsonValueKind.Object)
+                                    {
+                                        // Варіант з множинним вибором
+                                        string answerText = answer.GetProperty("title").GetString();
+                                        bool isCorrect = answer.GetProperty("isCorrect").GetBoolean();
+                                        answers.Add(answerText);
+                                        if (isCorrect) correctAnswers.Add(answerText);
+                                    }
+                                }
+                            }
+                        }
+
+                        questions.Add(new Question
+                        {
+                            Title = questionTitle,
+                            Points = 0,
+                            TimeLimit = timeLimit,
+                            Image = image,
+                            Answers = answers,
+                            CorrectAnswers = correctAnswers
+                        });
+                    }
+                }
+
                 var quiz = new Quiz
                 {
-                    Title = createQuizDto.Title,
-                    Description = createQuizDto.Description,
+                    Title = title,
+                    Description = description,
                     CategoryId = category.Id,
                     UserId = userId,
                     Rating = 0,
-                    Questions = createQuizDto.Questions.Select(questionDto => new Question
-                    {
-                        Title = questionDto.Title,
-                        Points = questionDto.Points,
-                        TimeLimit = questionDto.TimeLimit,
-                        CorrectAnswers = questionDto.CorrectAnswers.ToList(),
-                        Image = questionDto.Image,
-                        Video = questionDto.Video,
-                        Answers = questionDto.Answers?.ToList()
-                    }).ToList(),
-                    UserQuizStatuses = new List<UserQuizStatus>()
-                };
-
-             
-                quiz.UserQuizStatuses.Add(new UserQuizStatus
+                    Questions = questions,
+                    UserQuizStatuses = new List<UserQuizStatus>
+            {
+                new UserQuizStatus
                 {
                     UserId = userId,
                     QuizStatus = QuizStatus.Created
-                });
+                }
+            }
+                };
 
                 await _quizRepository.AddAsync(quiz);
                 await _quizRepository.SaveChangesAsync();
@@ -144,6 +195,8 @@ namespace RabbitQuestAPI.Controllers
                 return StatusCode(500, "An error occurred while creating the quiz.");
             }
         }
+
+
 
         [HttpPost("rate")]
         [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
