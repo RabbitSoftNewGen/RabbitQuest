@@ -59,7 +59,7 @@ public class UserController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error uploading avatar");
+            _logger.LogError(ex, "Error uploading avata");
             return StatusCode(500, "An error occurred while uploading the avatar.");
         }
     }
